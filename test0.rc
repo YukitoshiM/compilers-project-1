@@ -1,0 +1,17 @@
+typedef float FOO; 
+//typedef FOO* FPTR; 
+//typedef int* IPTR;
+typedef int XPR;
+typedef bool XPR1;
+int x; 
+FOO y; 
+//FPTR z; 
+//int* intPtr; 
+
+function : int main() { 
+ x = (XPR1) y; 
+ //x = (int) (x + 4.9); 
+ //y = (FOO) (int) (65.3); 
+ //intPtr = (IPTR) z; 
+ return 0; 
+} 

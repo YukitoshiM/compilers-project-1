@@ -1,0 +1,1099 @@
+import java_cup.runtime.*;
+import java.util.Vector;
+import java.lang.Long;
+
+//--------------------------------------------------------------------
+//
+//--------------------------------------------------------------------
+
+parser code 
+{:
+:};
+
+scan with {: return new Symbol (sym.EOF); :};
+
+//--------------------------------------------------------------------
+//
+//--------------------------------------------------------------------
+
+terminal
+    T_AMPERSAND,
+    T_AND,
+    T_ARROW,
+    T_ASSIGN,
+    T_BAR,
+    T_BOOL,
+    T_BREAK,
+    T_CARET,
+    T_CHAR,
+    T_CIN,
+    T_COLON,
+    T_COLONCOLON,
+    T_COMMA,
+    T_CONST,
+    T_CONTINUE,
+    T_COUT,
+    T_DOT,
+    T_ELSE,
+    T_ENDL,
+    T_EQU,
+    T_EXIT,
+    T_EXTERN,
+    T_FALSE,
+    T_FLOAT,
+    T_FUNCPTR,
+    T_FUNCTION,
+    T_GT,
+    T_GTE,
+    T_IF,
+    T_INT,
+    T_ISTREAM,
+    T_LBRACE,
+    T_LBRACKET,
+    T_LPAREN,
+    T_LT,
+    T_LTE,
+    T_MINUS,
+    T_MINUSMINUS,
+    T_MOD,
+    T_NEQ,
+    T_NOT,
+    T_NULLPTR,
+    T_OR,
+    T_OSTREAM,
+    T_PLUS,
+    T_PLUSPLUS,
+    T_RBRACE,
+    T_RBRACKET,
+    T_RETURN,
+    T_RPAREN,
+    T_SEMI,
+    T_SIZEOF,
+    T_SLASH,
+    T_STAR,
+    T_STATIC,
+    T_STRUCTDEF,
+    T_TRUE,
+    T_TYPEDEF,
+    T_WHILE,
+    T_VOID,
+    T_AUTO,
+    /* Phase 0 */
+    T_NEW,
+    T_DELETE,
+    T_DECLTYPE
+    ;
+
+terminal String
+    T_CHAR_LITERAL,
+    T_FLOAT_LITERAL,
+    T_INT_LITERAL,
+    T_STR_LITERAL,
+    T_ID_U,
+    T_ID
+    ;
+
+
+//--------------------------------------------------------------------
+//
+//--------------------------------------------------------------------
+
+non terminal    
+    Program,
+    OptGlobalDecls,
+    GlobalDecls,
+    GlobalDecl,
+    FuncDef,
+    FuncDecl,
+    ExternDecl,
+    VarDecl,
+    ConstDecl,
+    OptStatic,
+    TypedefDecl,
+    OptRef,   
+    OptStmtList,
+    StmtList,
+    Stmt,
+    CodeBlock,
+    IfStmt,
+    OptElse,
+    WhileStmt,
+    BreakStmt,
+    ContinueStmt,
+    ExitStmt,
+    ReturnStmt,
+    ReadStmt,
+    WriteStmt,
+    /* Phase 0 */
+    NewStmt,
+    DeleteStmt,
+    WritePairList,
+    WritePair, 
+    UnarySign,
+    //Equality,
+    //Relation,
+    OptInit,
+    ArrElemsList
+    ;
+
+non terminal BinaryOp
+    AddOp,
+    MulOp, 
+    Relation,
+    Equality
+    ;
+
+non terminal UnaryOp
+    IncDecOp
+    ;
+
+non terminal STO
+    Expr,
+    Expr0,
+    Expr1,
+    Expr2,
+    Expr3,
+    Expr4,
+    Expr5,
+    Expr6,
+    Expr7,
+    Expr8,
+    Designator,
+    Designator2,
+    Designator3,
+    QualIdent,
+    ConstExpr,
+    ParamDecl
+    ;
+
+non terminal Type
+    BasicType,
+    SubType,
+    Type,
+    UndecoratedType,
+    ReturnType,
+    Pointer,
+    PointerList,
+    OptPointerList,
+    OptModifiers,
+    DeclType
+    ;
+    	
+non terminal Vector
+    IdList,
+    IdListUpper,
+    IdListWOptInit,
+    IdListWInit,
+    OptParamList,
+    OptExprList,
+    ExprList,
+    FieldsList,
+    ParamList
+    ;
+ 
+non terminal Pair
+	FieldList
+;
+   
+
+//--------------------------------------------------------------------
+//
+//--------------------------------------------------------------------
+
+Program ::=    {:
+                         ((MyParser) parser).DoProgramStart(); 
+                    :}
+                    OptGlobalDecls
+                    {:
+                         ((MyParser) parser).DoProgramEnd();
+                    :}
+    ;
+
+OptGlobalDecls ::=  GlobalDecls
+    |                     /* empty */
+    ;
+
+
+GlobalDecls ::= GlobalDecl
+    |               GlobalDecls GlobalDecl
+    ;
+
+
+GlobalDecl ::=  ExternDecl
+    |               VarDecl
+    |               ConstDecl
+    |               TypedefDecl
+    |               FuncDecl
+    |               FuncDef
+    ;
+
+ExternDecl ::= T_EXTERN UndecoratedType IdList:_3 T_SEMI
+                    {:
+                         ((MyParser) parser).DoExternDecl (_3); 
+                    :}
+    ;
+
+DeclType ::= T_DECLTYPE T_LPAREN Expr:_1 T_RPAREN
+			{:
+				RESULT = _1.getType();
+			:}
+			;
+
+VarDecl ::=     OptStatic:_1 UndecoratedType:_2 IdListWOptInit:_3 T_SEMI
+                    {:
+                         ((MyParser) parser).DoVarDecl (_3, _2,(Boolean)_1);
+                    :}
+    |           OptStatic:_3 T_AUTO T_ID:_1 T_ASSIGN Expr:_2 T_SEMI{: 
+    					((MyParser) parser).DoAutoDecl (_1,_2, (Boolean)_3);
+    			:}
+
+    ;
+
+ConstDecl ::=  OptStatic:_1 T_CONST UndecoratedType:_2 IdListWInit:_3 T_SEMI
+                    {:
+                        ((MyParser) parser).DoConstDecl (_3,_2,(Boolean)_1);
+                    :}
+    |          OptStatic:_3 T_CONST T_AUTO T_ID:_1 T_ASSIGN Expr:_2 T_SEMI{:
+    					((MyParser) parser).DoAutoConstDecl (_1,_2,(Boolean)_3);
+    			:}
+    ;
+
+
+OptStatic ::=   T_STATIC{:
+					RESULT = true;
+				:}
+    |               /* empty */{:
+    					RESULT = false; 
+    				:}
+    ;
+
+
+TypedefDecl ::=     T_TYPEDEF Type:_1 IdListUpper:_2 T_SEMI
+                    {:
+                    	if(_1.isPtrGrp())
+                    		((MyParser) parser).setPtrBaseType(_1);
+                        ((MyParser) parser).DoTypedefDecl (_2,_1);
+                    :}
+    |               T_STRUCTDEF:_2 T_ID_U:_1 T_LBRACE  
+                    {:
+                    	((MyParser) parser).DoStructdefDecl (_1);
+                        ((MyParser) parser).DoBlockOpen();
+                        
+                    :}
+                     FieldsList:_3 T_RBRACE T_SEMI
+                    {: 
+                    	((MyParser) parser).DoStructVarDec(_3, (String)_1);
+                         ((MyParser) parser).DoBlockClose();                        
+                    :}
+    ;
+
+
+FieldsList ::=   FieldList:_1{:
+                    RESULT = new Vector();
+                    RESULT.addElement (_1);
+				:}
+    |               FieldsList:_1 FieldList:_2{:
+					RESULT = _1;
+                    RESULT.addElement (_2);
+				:}
+    				
+    ;
+
+
+FieldList ::=     UndecoratedType:_1 IdList:_2 T_SEMI{:
+					  Pair p = new Pair(_1,_2);
+				  	  RESULT = p;
+				  :}			
+    ;
+
+
+FuncDef ::=    T_FUNCTION T_COLON ReturnType:_1 OptRef:_4 T_ID:_2
+                    {:
+                        ((MyParser) parser).SaveLineNum ();
+                        ((MyParser) parser).DoFuncDecl_1(_2,_1,(Boolean)_4);
+                    :}
+                    T_LPAREN OptParamList:_3 T_RPAREN
+                    {:
+                        ((MyParser) parser).DoFormalParams(_3);
+                    :}
+                    T_LBRACE OptStmtList:_5 
+                    {:
+                    	if(_1 != null)
+                        	((MyParser) parser).DoFuncDecl_2((String)_5);
+                        else
+                        	((MyParser) parser).DoFuncDecl_2((String)"");
+                    :}
+                    T_RBRACE{:
+                    	((MyParser) parser).endingFunc();
+                    :}
+    ;
+
+
+FuncDecl ::=   T_EXTERN T_FUNCTION T_COLON ReturnType:_1 T_ID:_2
+                    {:
+                        ((MyParser) parser).DoFuncDecl_1(_2,_1,(Boolean)false);
+                    :}
+                    T_LPAREN OptParamList:_3 T_RPAREN
+                    {:
+                        ((MyParser) parser).DoFormalParams(_3);
+                    :}
+                    T_SEMI
+                    {:
+                        ((MyParser) parser).DoFuncDecl_2((String)"");
+                    :}
+    ;
+
+
+Type ::=         SubType:_1 OptModifiers:_2
+				{:	
+					if(_2 == null){
+						RESULT = _1;
+					}
+					else if(_2.isArray()){
+				    	((ArrayType)_2).setSubType(_1);
+						RESULT = _2;
+					}
+					else if(_2.isPtr()){
+				    	((PointerType)_2).setSubType(_1);
+						RESULT = _2;
+					}
+					else if(_2.isPtrGrp()){
+						
+				    	((PointerGroupType)_2).setBase(_1);
+						RESULT = _2;
+					}
+					else{
+						RESULT = _1;
+					}
+				:}
+    |               T_FUNCPTR T_COLON ReturnType:_1 OptRef:_2 T_LPAREN OptParamList:_3 T_RPAREN
+    			{:
+    				
+    				   if(_1.isPtrGrp()){
+    				     _1 = ((MyParser) parser).setPtrBaseType(_1);
+    					RESULT = new FunctionPointerType("",_1,(Boolean)_2,_3);
+    				}
+    				else
+    					RESULT = new FunctionPointerType("",_1,(Boolean)_2,_3);
+    			:}
+    ;
+
+UndecoratedType ::= SubType:_1
+					{:
+						RESULT = _1;
+					:}
+    |               T_FUNCPTR T_COLON ReturnType:_1 OptRef:_2 T_LPAREN OptParamList:_3 T_RPAREN{:
+    				
+    				if(_1.isPtrGrp()){
+    				    _1 = ((MyParser) parser).setPtrBaseType(_1);
+    					RESULT = new FunctionPointerType("funcptr",_1,(Boolean)_2,_3);
+    				}
+    				else
+    					RESULT = new FunctionPointerType("funcptr",_1,(Boolean)_2,_3);
+    			:}
+
+    				
+    ;
+
+SubType ::=    QualIdent:_1
+					{:  
+						RESULT = _1.getType();
+					:}
+    |               BasicType:_1
+    				{:
+						RESULT = _1;
+					:}
+	|				DeclType:_1
+					{:
+						RESULT = _1;
+					:}
+    ;
+
+
+BasicType ::=       T_INT
+					{:
+						RESULT = new IntType("int",4);
+					:}
+    |               T_FLOAT
+    				{:
+						RESULT = new FloatType("float",4);
+					:}
+    |               T_BOOL
+    				{:
+						RESULT = new BoolType("bool",4);
+					:}
+    |               T_CHAR
+    				{:
+						//RESULT = new IntType("int",4);
+					:}
+    ;
+
+
+OptModifiers ::= 	PointerList:_1{:
+						RESULT = new PointerGroupType("ptrgrp",_1,4);
+						
+					:}
+	|				T_LBRACKET ConstExpr:_2 T_RBRACKET
+					{:
+						RESULT = ((MyParser) parser).DoArrayIndexTypeCheck (_2);
+					:}
+    |               /* empty */
+    ;
+	
+OptPointerList ::= 	PointerList:_1{: 
+						RESULT = new PointerGroupType("ptrgrp",_1,((Type)_1).getSize());
+					:}
+    |               /* empty */
+    ;
+
+
+PointerList ::=    Pointer:_1
+					{:
+						RESULT = _1;
+				   	:}
+					
+    |               PointerList:_1 Pointer:_2
+    				{:
+    					((PointerType)_2).setSubType(_1);
+    					((PointerType)_2).setPtrLvl( ((PointerType)_1).getPtrLvl() + 1  );
+    					RESULT =  _2; 
+    				:}
+    				
+    ;
+
+
+Pointer ::=        T_STAR:_1
+					{:
+						RESULT = new PointerType("ptr", 4); 
+				   	:}
+    ;
+
+
+ReturnType ::=      SubType:_1 OptPointerList:_2
+                    {:
+                        // You should determine the type and return it here
+                        if(_2 == null){
+                        	//PointerGroupType t = new PointerGroupType("ptrgrp",_1,0);
+                        	if(_1 instanceof PointerGroupType)
+								((PointerGroupType)_1).setSize(0);
+							RESULT = _1;
+						}
+						else if(_2.isPtrGrp()){
+				    		((PointerGroupType)_2).setBase(_1);
+				    		((PointerGroupType)_2).setSize(((PointerType)((PointerGroupType)_2).getPtr()).getPtrLvl());
+							RESULT = _2;
+						}
+						else{
+							RESULT = _1;
+						}
+                        
+                    :}
+    |               T_VOID{:
+    					RESULT = new VoidType("void",1);
+    				:}
+    ;
+    
+
+//STO sto = new STO(fuck,4);
+CodeBlock ::=       T_LBRACE
+                    {: ((MyParser) parser).DoBlockOpen(); :}
+                    OptStmtList:_1{:
+                    	if(_1 == null) RESULT = null;
+                    	else RESULT = _1;
+                        ((MyParser) parser).DoBlockClose();
+                    :}
+                    T_RBRACE
+    ;
+
+
+OptStmtList ::=     StmtList:_1{:
+						RESULT = _1;
+					:}
+    |               /* empty */
+    ;
+
+
+StmtList ::=        Stmt:_1{:
+						RESULT = _1;
+					:}
+    |               StmtList:_1 Stmt:_2{:
+    					if(_1 != null)
+    						RESULT = _1;
+    					else if(_2 != null)
+    						RESULT = _2;
+    					else
+    						RESULT = _1;
+    				:}
+    ;
+
+
+Stmt ::=        VarDecl
+    |               ConstDecl
+    |               TypedefDecl
+    |               CodeBlock
+    |               Expr T_SEMI
+    |               IfStmt
+    |               WhileStmt
+    |               BreakStmt:_1{:
+    					RESULT = "break";
+    				:}
+    |               ContinueStmt:_1{:
+    					RESULT = "continue";
+    				:}
+    |               ExitStmt
+    |               ReturnStmt
+    |               ReadStmt
+    |               WriteStmt
+    /* Phase 0 */
+    |				NewStmt
+    |				DeleteStmt
+    ;
+
+
+OptParamList ::=    ParamList:_1{:
+						RESULT = _1;
+					:}
+    |               /* empty */
+    				{:
+		    			RESULT = new Vector<STO>();
+     				:}
+    ;
+
+
+ParamList ::=       ParamDecl:_1{:
+					RESULT = new Vector<STO>();
+					RESULT.addElement (_1);
+				 :}
+    |               ParamList:_1 T_COMMA ParamDecl:_2{:
+    				RESULT = _1;
+					RESULT.addElement (_2);
+				 :}
+    ;
+
+
+ParamDecl ::=       Type:_1 OptRef:_3 T_ID:_2{:
+						
+						if(_1.isPtrGrp()){
+				    		_1=((MyParser) parser).setPtrBaseType(_1);
+						}
+						RESULT = new VarSTO(_2,_1,(Boolean)_3);
+					:}
+    ;
+
+
+OptRef ::=          T_AMPERSAND{:
+						RESULT = true;
+					:}
+    |               /* empty */{:
+    					RESULT = false;
+    :}
+    ;
+
+
+IdList ::=          OptModifiers:_2 T_ID:_1
+                    {:
+                        RESULT = new Vector ();
+                        RESULT.addElement (new Pair(_2,_1));
+                    :}
+    |               IdList:_1 T_COMMA OptModifiers:_2 T_ID:_3
+                    {:
+                        RESULT = _1;
+                        RESULT.addElement (new Pair(_2,_3));
+                    :}
+    ;
+
+
+IdListUpper ::=     T_ID_U:_1
+                    {:
+                        RESULT = new Vector ();
+                        RESULT.addElement (_1);
+                    :}
+    |               IdListUpper:_1 T_COMMA T_ID_U:_3
+                    {:
+                        RESULT = _1;
+                        RESULT.addElement (_3);
+                    :}
+    ;
+
+IdListWOptInit ::=  OptModifiers:_3 T_ID:_1 OptInit:_2
+                    {:
+                    	
+                        RESULT = new Vector ();
+                        RESULT.addElement (((MyParser) parser).DoCreateSTO(_3,_1,(STO)_2));
+                        
+                    :}
+    |               IdListWOptInit:_1 T_COMMA OptModifiers:_4 T_ID:_3 OptInit:_2
+                    {:
+                        RESULT = _1;
+                        RESULT.addElement (((MyParser) parser).DoCreateSTO(_4,_3,(STO)_2));
+                    :}
+    ;
+
+IdListWInit ::=     OptModifiers:_3 T_ID:_1 T_ASSIGN ConstExpr:_2
+                    {:
+                    	
+						RESULT = new Vector ();
+						RESULT.addElement (((MyParser) parser).DoCreateSTO(_3,_1,(STO)_2));
+                    :}
+  //|       Do not need an extra rule since we are not doing constant arrays
+    |               IdListWInit:_1 T_COMMA OptModifiers:_4 T_ID:_3 T_ASSIGN ConstExpr:_2 
+                    {:
+						RESULT = _1;
+						RESULT.addElement (((MyParser) parser).DoCreateSTO(_4,_3,(STO)_2));
+		    :}
+    ;
+
+
+OptInit ::=         T_ASSIGN Expr:_1{:
+
+						RESULT = _1;
+					:}
+    |               T_ASSIGN T_LBRACE ArrElemsList T_RBRACE
+    |               /* empty */
+    ;
+
+ArrElemsList ::=    Expr
+    |               ArrElemsList T_COMMA Expr
+    ;
+
+IfStmt ::=          T_IF Expr:_1{:
+						((MyParser) parser).StartIf(_1);
+					:} CodeBlock:_2 OptElse{:
+						if(_2 != null)
+							RESULT = ((MyParser) parser).CheckIf(_1,(String)_2);
+						else
+							RESULT = ((MyParser) parser).CheckIf(_1,(String)"");
+					:}
+    ;
+
+
+OptElse ::=         T_ELSE CodeBlock
+    |               /*T_ELSE T_IF Expr:_1 CodeBlock:_2 OptElse{:
+						if(_2 != null)
+							RESULT = ((MyParser) parser).CheckIf(_1,(String)_2);
+						else
+							RESULT = ((MyParser) parser).CheckIf(_1,(String)"");
+					:}*/
+    ;
+
+
+WhileStmt ::=       T_WHILE Expr:_1 CodeBlock:_2{:
+						if(_2 != null)
+							RESULT = ((MyParser) parser).CheckWhile(_1,(String)_2);
+						else
+							RESULT = ((MyParser) parser).CheckWhile(_1,(String)"");
+					:}
+    ;
+
+
+BreakStmt ::=       T_BREAK:_1 T_SEMI{:
+						RESULT = true;
+					:}
+    ;
+
+
+ContinueStmt ::=    T_CONTINUE T_SEMI{:
+						RESULT = true;
+					:}
+    ;
+
+
+ExitStmt ::=        T_EXIT T_LPAREN Expr:_1 T_RPAREN T_SEMI{:
+						((MyParser) parser).DoExitCheck(_1);
+					:}
+    ;
+
+
+ReturnStmt ::=   T_RETURN T_SEMI{:
+					 ((MyParser) parser).DoReturnCheck(new ConstSTO("null",new VoidType("void",4)));
+				:}
+    |               T_RETURN Expr:_1 T_SEMI{:
+    					((MyParser) parser).DoReturnCheck(_1);
+    				:}
+    ;
+
+
+ReadStmt ::=        T_CIN T_ISTREAM Designator:_1 T_SEMI
+{:
+			((MyParser) parser).dump_cin(_1);
+:}
+    ;
+
+
+WriteStmt ::=       T_COUT T_OSTREAM WritePairList T_SEMI
+			{:
+				//((MyParser) parser).dump_cout();
+			:}
+    ;
+
+
+/* Phase 0 */
+NewStmt ::= T_NEW Designator:_1 T_SEMI
+			{:
+				((MyParser) parser).DoNewCheck(_1);
+			:}
+	;
+
+
+DeleteStmt ::= T_DELETE Designator:_1 T_SEMI
+			{:
+				((MyParser) parser).DoDeleteCheck(_1);
+			:}
+	;
+
+	
+WritePairList ::=   WritePair
+    |               WritePairList T_OSTREAM WritePair
+    ;
+
+
+WritePair ::=    Expr:_1
+				{:
+					((MyParser) parser).add_expr(_1);
+				:}
+    |               T_ENDL
+    			{:
+    			((MyParser) parser).add_endl();
+    			:}
+    ;
+
+
+ConstExpr ::=    Expr:_1
+				{:
+					RESULT = _1;
+				:}
+;
+
+OptExprList ::=     ExprList:_1{:
+						RESULT = _1;
+					:}
+    |               /* empty */
+    				{:
+		    			RESULT = new Vector<STO>();
+     				:}
+    ;
+
+
+ExprList ::=     Expr:_1{:
+					RESULT = new Vector<STO>();
+					RESULT.addElement (_1);
+				 :}
+    |               ExprList:_2 T_COMMA Expr:_1{:
+    				RESULT = _2;
+					RESULT.addElement (_1);
+				 :}
+    ;
+
+/* Phase 0 */
+UnarySign ::= 	T_PLUS
+				{:
+					RESULT = false;
+				:}
+	|			T_MINUS
+				{:
+					RESULT = true;
+				:}
+				;
+	
+Expr ::=         Designator:_1 T_ASSIGN Expr:_2
+                    {:
+                    	
+                        RESULT = ((MyParser) parser).DoAssignExpr (_1,_2);
+                    :}
+    |               Expr0:_1
+                    {:
+			RESULT = _1;
+                    :}
+    ;
+
+
+
+Expr0 ::=        Expr0:_1 T_OR Expr1:_2
+                    {:
+			RESULT = ((MyParser) parser).DoBinaryExpr(_1, new OrOp("||"),_2);
+                    :}
+    |               Expr1:_1
+                    {:
+			RESULT = _1;
+                    :}
+    ;
+
+
+Expr1 ::=        Expr1:_1 T_AND Expr2:_2
+                    {:
+			RESULT = ((MyParser) parser).DoBinaryExpr(_1, new AndOp("&&"),_2);
+                    :}
+    |               Expr2:_1
+                    {:
+			RESULT = _1;
+                    :}
+    ;
+
+
+Expr2 ::=        Expr2:_1 T_BAR Expr3:_2
+                    {:
+			RESULT =((MyParser) parser).DoBinaryExpr(_1, new BwOrOp("|"),_2);
+                    :}
+    |               Expr3:_1
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+Expr3 ::=        Expr3:_1 T_CARET Expr4:_2
+                    {:
+			RESULT = ((MyParser) parser).DoBinaryExpr(_1,new XorOp("^"),_2);
+                    :}
+    |               Expr4:_1
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+Expr4 ::=        Expr4:_1 T_AMPERSAND Expr5:_2
+                    {:
+			RESULT = ((MyParser) parser).DoBinaryExpr(_1,new BwAndOp("&"),_2);
+                    :}
+    |               Expr5:_1
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+Expr5 ::=           Expr5:_1 Equality:_2 Expr6:_3
+                    {:
+                        RESULT = ((MyParser) parser).DoBinaryExpr(_1,_2,_3);
+                    :}
+    |               Expr6:_1
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+Expr6 ::=           Expr6:_1 Relation:_2 Expr7:_3
+                    {:
+                        RESULT = ((MyParser) parser).DoBinaryExpr(_1,_2,_3);
+                    :}
+    |               Expr7:_1
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+Expr7 ::=           Expr7:_1 AddOp:_2 Expr8:_3
+                    {:
+                        RESULT = ((MyParser) parser).DoBinaryExpr(_1,_2,_3);
+                    :}
+    |               Expr8:_1
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+Expr8 ::=        Expr8:_1 MulOp:_2 Designator:_3
+                    {:
+                        RESULT = ((MyParser) parser).DoBinaryExpr(_1,_2,_3);
+                    :}
+    |               Designator:_1
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+
+Equality ::=     T_EQU{:
+                        RESULT= new EqualOp("==");
+                    :}
+    |               T_NEQ{:
+                        RESULT= new NotEqualOp("!=");
+                    :}
+    ;
+
+
+Relation ::=     	T_LT
+                    {:
+                        RESULT= new LessThanOp("<");
+                    :}
+    |               T_GT
+                    {:
+                        RESULT= new GreaterThanOp(">");
+                    :}
+    |               T_LTE
+                    {:
+                    	RESULT= new LessThanEqOp("<=");
+                    :}
+    |               T_GTE
+                    {:
+                        RESULT= new GreaterThanEqOp(">="); 
+                    :}
+    ;
+
+
+AddOp ::=       T_PLUS
+                    {:
+                        RESULT= new AddOp("+");
+                    :}
+    |               T_MINUS
+                    {:
+                        RESULT = new MinusOp("-");
+                    :}
+    ;
+
+
+MulOp ::=       T_STAR
+                    {:
+                        RESULT = new MulOp("*");
+                    :}
+    |               T_SLASH
+                    {:
+                        RESULT = new DivOp("/");
+                    :}
+    |               T_MOD
+                    {:
+                        RESULT = new ModOp("%");
+                    :}
+    ;
+
+
+IncDecOp ::=        T_PLUSPLUS
+                    {:
+                        RESULT = new IncOp("++");
+                    :}
+    |               T_MINUSMINUS
+                    {:
+                        RESULT = new DecOp("--");
+                    :}
+    ;
+ 
+
+Designator ::= T_STAR:_1 Designator:_2
+                    {:
+                    	
+						RESULT = ((MyParser) parser).DoUnaryOp(new DerefOp((String)_1),_2, (Boolean) false);
+						
+                    :}
+    |               T_AMPERSAND Designator:_1
+                    {:
+           
+						RESULT = ((MyParser) parser).DoAddressabla(_1);
+                    :}
+    |               UnarySign:_2 Designator:_1
+                    {:
+						RESULT = ((MyParser)parser).unary_plusmin((Boolean)_2,_1);
+                    :}
+    |               T_NOT:_1 Designator:_2
+                    {:
+                    	RESULT = ((MyParser) parser).DoUnaryOp(new NotOp((String)"!"),_2, (Boolean) false); 
+						((MyParser)parser).unaryNotFmt(RESULT);
+                    :}
+    |               T_SIZEOF T_LPAREN Designator:_2 T_RPAREN
+                    {:
+						RESULT = ((MyParser) parser).DoSizeOf(_2,null);
+                    :}
+    |               T_SIZEOF T_LPAREN Type:_2 T_RPAREN
+                    {:
+						RESULT = ((MyParser) parser).DoSizeOf(null,_2);
+                    :}
+    |               T_LPAREN Type:_1 T_RPAREN Designator:_2
+                    {:
+						RESULT = ((MyParser) parser).DoCast(_1,_2);
+                    :}
+    |               IncDecOp:_1 Designator:_2
+                    {:
+					RESULT = ((MyParser) parser).DoUnaryOp(_1,_2, (Boolean) true);
+                    :}
+    |               Designator2:_1  
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+Designator2 ::=     Designator2:_1 T_DOT T_ID:_3
+                    {: 
+                        RESULT = ((MyParser) parser).DoDesignator2_Dot (_1, _3);
+                    :}
+    |               Designator2:_1 T_LBRACKET Expr:_2 T_RBRACKET
+                    {:
+                        RESULT = ((MyParser) parser).DoDesignator2_Array (_1,_2);
+                    :}
+    |               Designator2:_1 T_ARROW T_ID:_3
+                    {:
+                        RESULT = ((MyParser) parser).DoDesignator2_Arrow (_1, _3);;
+                    :}
+    |               Designator2:_1 IncDecOp:_2
+                    {:
+                        RESULT = ((MyParser) parser).DoUnaryOp(_2,_1, (Boolean) false);
+                    :}
+    |               Designator2:_1 T_LPAREN OptExprList:_2 T_RPAREN
+                    {:
+                        RESULT = ((MyParser) parser).DoFuncCall (_1,_2);
+                    	RESULT.setIsFuncReturn((Boolean)true);
+                    :}
+    |               Designator3:_1
+                    {:
+                        RESULT = _1;
+                    :}
+    ;
+
+
+Designator3 ::=     T_LPAREN Expr:_2 T_RPAREN
+                    {:
+                        RESULT =  _2;
+                    :}
+    |               T_INT_LITERAL:_1
+                    {:    
+                        RESULT = new ConstSTO (_1, new IntType("int",4),Integer.decode(_1),(Boolean)true);
+                        RESULT.setIsAddressable(false);
+                    :}
+    |               T_FLOAT_LITERAL:_1
+                    {:
+                        RESULT = new ConstSTO (_1, new FloatType("float",4),Double.parseDouble(_1),(Boolean)true);
+                       RESULT.setIsAddressable(false);
+                    :}
+    |               T_CHAR_LITERAL:_1
+                    {:
+                        RESULT = new ConstSTO (_1);
+                    :}
+    |               T_STR_LITERAL:_1
+                    {:
+                        RESULT = new ConstSTO (_1,(Boolean)true);  
+                    :}
+    |               T_TRUE
+                    {:
+                        RESULT = new ConstSTO ("true", new BoolType("bool",4),1,(Boolean)true);
+                        RESULT.setIsAddressable(false);
+                    :}
+    |               T_FALSE
+                    {:
+                        RESULT = new ConstSTO ("false", new BoolType("bool",4),0,(Boolean)true);
+                        RESULT.setIsAddressable(false);
+                    :} 
+    |               T_NULLPTR
+                    {:
+                        RESULT = new ConstSTO ("nullptr", new NullPointerType("nullptr",0),0,(Boolean)true);
+                    :}
+    |               T_COLONCOLON T_ID:_1
+                    {:
+                        RESULT = ((MyParser) parser).DoDesignator3_ID (_1, true);
+                    :}
+    |               T_ID:_1
+                    {:
+                        RESULT = ((MyParser) parser).DoDesignator3_ID (_1, false);
+                    :}
+    ;
+ 
+ 
+
+QualIdent ::=       T_ID_U:_1
+                    {:
+                       RESULT = ((MyParser) parser).DoQualIdent (_1); 
+                    :}
+    ;
